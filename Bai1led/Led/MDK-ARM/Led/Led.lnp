@@ -1,0 +1,23 @@
+--cpu Cortex-M0+
+"led\startup_stm32g030xx.o"
+"led\main.o"
+"led\stm32g0xx_it.o"
+"led\stm32g0xx_hal_msp.o"
+"led\stm32g0xx_hal_rcc.o"
+"led\stm32g0xx_hal_rcc_ex.o"
+"led\stm32g0xx_ll_rcc.o"
+"led\stm32g0xx_hal_flash.o"
+"led\stm32g0xx_hal_flash_ex.o"
+"led\stm32g0xx_hal_gpio.o"
+"led\stm32g0xx_hal_dma.o"
+"led\stm32g0xx_hal_dma_ex.o"
+"led\stm32g0xx_hal_pwr.o"
+"led\stm32g0xx_hal_pwr_ex.o"
+"led\stm32g0xx_hal_cortex.o"
+"led\stm32g0xx_hal.o"
+"led\stm32g0xx_hal_exti.o"
+"led\system_stm32g0xx.o"
+--strict --scatter "Led\Led.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "Led.map" -o Led\Led.hex
