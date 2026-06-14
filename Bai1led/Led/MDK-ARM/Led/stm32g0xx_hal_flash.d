@@ -29,3 +29,5 @@ led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_fla
 led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_flash_ex.h
 led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_pwr.h
 led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_pwr_ex.h
+led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_tim.h
+led\stm32g0xx_hal_flash.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_tim_ex.h
