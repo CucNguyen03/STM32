@@ -18,6 +18,8 @@
 "led\stm32g0xx_hal_cortex.o"
 "led\stm32g0xx_hal.o"
 "led\stm32g0xx_hal_exti.o"
+"led\stm32g0xx_hal_uart.o"
+"led\stm32g0xx_hal_uart_ex.o"
 "led\system_stm32g0xx.o"
 --strict --scatter "Led\Led.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols

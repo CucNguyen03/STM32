@@ -21,6 +21,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+uint8_t u8_RxBuff[20];
+uint8_t u8_RxData;
+uint8_t u8_TxBuff[20] = "Xin Chao!!";
+uint8_t _rxIndex;
+uint16_t Tx_Flag = 0;
 
 /* USER CODE END Includes */
 
@@ -42,6 +47,8 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
 
+UART_HandleTypeDef huart1;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -50,6 +57,7 @@ TIM_HandleTypeDef htim1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -98,8 +106,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
+	HAL_UART_Receive_IT(&huart1, &u8_RxData, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -145,16 +156,48 @@ int main(void)
 		
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
-    pwm_set_duty(&htim1, TIM_CHANNEL_1, 10); // âm nh?
-    HAL_Delay(500);
+    pwm_set_duty(&htim1, TIM_CHANNEL_1, 50); 
+    HAL_Delay(1000);
 
-    pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); // t?t
+    pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
     HAL_Delay(500);
+		
+		
+		if(Tx_Flag)
+		{
+			for(int i = 0; i <20; i++)
+			{
+				u8_TxBuff[i] = u8_RxBuff[i];
+			}
+			HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
+			Tx_Flag = 0;
+		}
 
   }
   /* USER CODE END 3 */
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(huart);
+	if(huart->Instance == USART1)
+	{
+		if(u8_RxData != 13)
+		{
+			u8_RxBuff[_rxIndex++] = u8_RxData;
+		}
+		else if(u8_RxData == 13)
+		{
+			_rxIndex = 0;
+			Tx_Flag = 1;
+		}
+		HAL_UART_Receive_IT(&huart1, &u8_RxData, 1);
+	}
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_UART_RxCpltCallback can be implemented in the user file.
+   */
+}
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -278,6 +321,54 @@ static void MX_TIM1_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -290,6 +381,7 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
