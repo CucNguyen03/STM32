@@ -3,6 +3,8 @@
 "led\main.o"
 "led\stm32g0xx_it.o"
 "led\stm32g0xx_hal_msp.o"
+"led\stm32g0xx_hal_tim.o"
+"led\stm32g0xx_hal_tim_ex.o"
 "led\stm32g0xx_hal_rcc.o"
 "led\stm32g0xx_hal_rcc_ex.o"
 "led\stm32g0xx_ll_rcc.o"

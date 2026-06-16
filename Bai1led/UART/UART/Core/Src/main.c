@@ -58,12 +58,7 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
-	uint8_t u8_RXBuff[20];
-	uint8_t u8_RxData;
-	uint8_t u8_TxBuff[20] = "Hello!";
-	uint8_t rxIndex;
-	uint16_t Tx_Flag = 0;
-	
+
 /**
   * @brief  The application entry point.
   * @retval int
