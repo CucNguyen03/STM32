@@ -23,9 +23,9 @@
 /* USER CODE BEGIN Includes */
 uint8_t u8_RxBuff[20];
 uint8_t u8_RxData;
-uint8_t u8_TxBuff[20] = "Xin Chao!!";
-uint8_t _rxIndex;
-uint16_t Tx_Flag = 0;
+uint8_t u8_TxBuff[] = "Xin Chao!!\r\n";
+volatile uint8_t _rxIndex = 0;
+volatile uint16_t Tx_Flag = 0;
 
 /* USER CODE END Includes */
 
@@ -48,6 +48,7 @@ uint16_t Tx_Flag = 0;
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 
@@ -56,9 +57,11 @@ UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
 
 /* USER CODE END PFP */
 
@@ -105,12 +108,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
-	HAL_UART_Receive_IT(&huart1, &u8_RxData, 1);
+	HAL_UART_Receive_DMA(&huart1, u8_RxBuff, sizeof(u8_RxBuff));
+
+	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -125,79 +130,63 @@ int main(void)
 		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_RESET);
-		HAL_Delay(2000);
+		HAL_Delay(500);
 		
 		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_SET);
-		HAL_Delay(2000);
+		HAL_Delay(500);
 		
 		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
+		HAL_Delay(500);
 		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_SET);
 		
 		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
+		HAL_Delay(500);
 		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_SET);
 		
 		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
+		HAL_Delay(500);
 		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_SET);
 		
 		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
+		HAL_Delay(500);
 		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_SET);
 		
-		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_RESET);
-		HAL_Delay(1000);
-		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_SET);
+
 		
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
-    pwm_set_duty(&htim1, TIM_CHANNEL_1, 50); 
+    pwm_set_duty(&htim1, TIM_CHANNEL_1, 20); 
     HAL_Delay(1000);
 
     pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
-    HAL_Delay(500);
+    HAL_Delay(1000);
 		
 		
-		if(Tx_Flag)
-		{
-			for(int i = 0; i <20; i++)
-			{
-				u8_TxBuff[i] = u8_RxBuff[i];
-			}
-			HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
-			Tx_Flag = 0;
-		}
-
   }
   /* USER CODE END 3 */
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(huart);
 	if(huart->Instance == USART1)
 	{
-		if(u8_RxData != 13)
-		{
-			u8_RxBuff[_rxIndex++] = u8_RxData;
-		}
-		else if(u8_RxData == 13)
-		{
-			_rxIndex = 0;
-			Tx_Flag = 1;
-		}
-		HAL_UART_Receive_IT(&huart1, &u8_RxData, 1);
+		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
 	}
   /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_UART_RxCpltCallback can be implemented in the user file.
+            the HAL_UART_TxCpltCallback can be implemented in the user file.
    */
-}
+} 
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -365,6 +354,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
 
