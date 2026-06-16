@@ -21,11 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-uint8_t u8_RxBuff[20];
+uint8_t RxChar;
 uint8_t u8_RxData;
-uint8_t u8_TxBuff[] = "Xin Chao!!\r\n";
-volatile uint8_t _rxIndex = 0;
-volatile uint16_t Tx_Flag = 0;
+uint8_t u8_TxBuff[] = "Hello hello!!\r\n";
+
 
 /* USER CODE END Includes */
 
@@ -113,9 +112,9 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-	HAL_UART_Receive_DMA(&huart1, u8_RxBuff, sizeof(u8_RxBuff));
 
 	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
+	HAL_UART_Receive_IT(&huart1, &RxChar, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -174,23 +173,6 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(huart);
-	if(huart->Instance == USART1)
-	{
-		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
-	}
-  /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_UART_TxCpltCallback can be implemented in the user file.
-   */
-} 
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -227,6 +209,39 @@ void SystemClock_Config(void)
   }
 }
 
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(huart);
+	if(huart->Instance == USART1)
+	{
+		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
+	}
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_UART_TxCpltCallback can be implemented in the user file.
+   */
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */ 
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART1)
+    {
+			HAL_UART_Receive_IT(&huart1, &RxChar, 1);
+      HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
+    }
+}
 /**
   * @brief TIM1 Initialization Function
   * @param None
