@@ -30,7 +30,10 @@ led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_flash.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_flash_ex.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_pwr.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_pwr_ex.h
+led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_spi.h
+led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_spi_ex.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_tim.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_tim_ex.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_uart.h
 led\main.o: ../Drivers/STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_uart_ex.h
+led\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
