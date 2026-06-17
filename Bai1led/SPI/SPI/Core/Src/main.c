@@ -60,6 +60,7 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 
 uint8_t send_data=32, receive_data=0;
+volatile uint32_t count_rx = 0;
 
 /* USER CODE BEGIN PFP */
 //void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
@@ -120,7 +121,8 @@ int main(void)
 	//HAL_SPI_Transmit(&hspi1, u8_SPI1_TXBuff, sizeofBuff, 100);
 	//HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
 	//HAL_SPI_Transmit_IT(&hspi1, &send_data, 1);
-	HAL_SPI_Receive_DMA(&hspi2, &receive_data, 1);
+	
+   HAL_SPI_Receive_IT(&hspi2, &receive_data, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -136,6 +138,8 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
+ /* USER CODE BEGIN Init */
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -148,18 +152,24 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
             the HAL_SPI_TxCpltCallback should be implemented in the user file
    */
 }
+ /* USER CODE END Init */
 
+ /* USER CODE BEGIN Init */
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if(hspi->Instance == SPI2)
     {
-        HAL_SPI_Receive_DMA(&hspi2, &receive_data, 1);
+			count_rx++;
+      HAL_SPI_Receive_IT(&hspi2, &receive_data, 1);
     }
 } 
+ /* USER CODE END Init */
+
 /**
   * @brief System Clock Configuration
   * @retval None
   */
+
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -308,7 +318,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
