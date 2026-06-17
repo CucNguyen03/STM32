@@ -173,6 +173,42 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
+
+/* USER CODE BEGIN 4 */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(huart);
+	if(huart->Instance == USART1)
+	{
+		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
+	}
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_UART_TxCpltCallback can be implemented in the user file.
+   */
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */ 
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART1)
+    {
+			HAL_UART_Receive_IT(&huart1, &RxChar, 1);
+      HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
+    }
+}
+/* USER CODE END 3 */
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+
+
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -209,39 +245,6 @@ void SystemClock_Config(void)
   }
 }
 
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(huart);
-	if(huart->Instance == USART1)
-	{
-		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
-	}
-  /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_UART_TxCpltCallback can be implemented in the user file.
-   */
-}
-
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */ 
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if(huart->Instance == USART1)
-    {
-			HAL_UART_Receive_IT(&huart1, &RxChar, 1);
-      HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
-    }
-}
 /**
   * @brief TIM1 Initialization Function
   * @param None
