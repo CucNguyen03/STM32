@@ -479,8 +479,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin, GPIO_PIN_RESET);
-
+  HAL_GPIO_WritePin(GPIOA, Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin|RFID_PWR_EN_Pin, GPIO_PIN_RESET);
+	
+	/*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port, SPI1_NSS_Pin, GPIO_PIN_SET);
+	
   /*Configure GPIO pin : Led4_Pin */
   GPIO_InitStruct.Pin = Led4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -488,13 +491,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Led4_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Led0_Pin Led1_Pin Led2_Pin Led3_Pin */
-  GPIO_InitStruct.Pin = Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin;
+ /*Configure GPIO pins : Led0_Pin Led1_Pin Led2_Pin Led3_Pin SPI1_NSS_Pin RFID_PWR_EN_Pin */
+  GPIO_InitStruct.Pin = Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin|SPI1_NSS_Pin|RFID_PWR_EN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
+  
+	/*Configure GPIO pin : RFID_IRQ_Pin */
+  GPIO_InitStruct.Pin = RFID_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(RFID_IRQ_GPIO_Port, &GPIO_InitStruct);
+	
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */

@@ -69,8 +69,12 @@ void Error_Handler(void);
 #define Led2_GPIO_Port GPIOA
 #define Led3_Pin GPIO_PIN_3
 #define Led3_GPIO_Port GPIOA
-#define CS_Pin GPIO_PIN_4
-#define CS_GPIO_Port GPIOA
+#define SPI1_NSS_Pin GPIO_PIN_4
+#define SPI1_NSS_GPIO_Port GPIOA
+#define RFID_IRQ_Pin GPIO_PIN_11
+#define RFID_IRQ_GPIO_Port GPIOA
+#define RFID_PWR_EN_Pin GPIO_PIN_12
+#define RFID_PWR_EN_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

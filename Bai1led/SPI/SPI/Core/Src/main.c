@@ -59,9 +59,8 @@ static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 
-uint8_t send_data=32, receive_data=0;
-volatile uint32_t count_rx = 0;
-
+uint8_t send_data='A', receive_data=0;
+volatile uint32_t count_rx = 0; 
 /* USER CODE BEGIN PFP */
 //void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 //{
@@ -130,16 +129,18 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); 
-		HAL_SPI_Transmit_IT(&hspi1, &send_data,1); 
-		send_data++; 
-		HAL_Delay(1000);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+    HAL_SPI_Transmit(&hspi1, &send_data, 1, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+    send_data++;
+    HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
 
- /* USER CODE BEGIN Init */
+
+/* USER CODE BEGIN Init */
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -169,7 +170,6 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
   * @brief System Clock Configuration
   * @retval None
   */
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -318,7 +318,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
