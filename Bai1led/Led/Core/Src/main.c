@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "string.h"
+#include "stdio.h"
+#include "st25r95.h"
+#include <stdlib.h>
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -27,7 +30,7 @@ uint8_t RxChar;
 uint8_t u8_RxData;
 uint8_t u8_TxBuff[] = "Hello hello!!\r\n";
 
-uint8_t TX_Buffer[] = "A";
+volatile st25r95_handle reader_handler;
 
 /* USER CODE END Includes */
 
@@ -67,6 +70,7 @@ static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
+volatile st25r95_handle reader_handler;
 /* USER CODE BEGIN PFP */
 
 
@@ -84,6 +88,44 @@ void pwm_set_duty(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t duty)
 	ccr = ((htim->Instance->ARR + 1)*duty)/100;
 	__HAL_TIM_SET_COMPARE(htim, Channel, ccr);
 }
+
+
+void reader_irq_pulse() {
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_Delay(1);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_Delay(8);
+}
+
+void reader_nss(uint8_t enable)
+{
+    HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port, SPI1_NSS_Pin, enable ? GPIO_PIN_RESET : GPIO_PIN_SET);
+}
+
+void reader_tx(uint8_t *data, size_t len) {
+  HAL_SPI_Transmit(&hspi1, data, len, HAL_MAX_DELAY);
+}
+
+void reader_rx(uint8_t *data, size_t len) {
+  HAL_SPI_Receive(&hspi1, data, len, HAL_MAX_DELAY);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if(GPIO_Pin == RFID_IRQ_Pin)
+    {
+			reader_handler.irq_flag = 1;
+			HAL_GPIO_TogglePin(Led4_GPIO_Port, Led4_Pin);
+    }
+}
+
+void st25_card_callback(uint8_t *uid)
+{
+    char msg[64];
+    sprintf(msg, "UID: %02X %02X %02X %02X\r\n",uid[0], uid[1], uid[2], uid[3]);
+    HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -124,12 +166,51 @@ int main(void)
 
 	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
 	HAL_UART_Receive_IT(&huart1, &RxChar, 1);
+	 
+	HAL_GPIO_WritePin(RFID_PWR_EN_GPIO_Port, RFID_PWR_EN_Pin,  GPIO_PIN_SET);
+	HAL_Delay(50);
 	
-	HAL_SPI_Transmit_DMA(&hspi1, TX_Buffer, 1);
+	 /* Setup all protocol */
+  /* Setup all protocol */
+  reader_handler.protocol = ST25_PROTOCOL_14443A;
+  reader_handler.tx_speed = ST25_26K_106K;
+  reader_handler.rx_speed = ST25_26K_106K;
+  reader_handler.timerw = 0x58;
+  reader_handler.ARC = 0xD1;
+  reader_handler.irq_flag = 0;
+
+  /* Bind BSP Functions */
+  reader_handler.nss = reader_nss;
+  reader_handler.tx = reader_tx;
+  reader_handler.rx = reader_rx;
+  reader_handler.irq_pulse = reader_irq_pulse;
+  reader_handler.callback = st25_card_callback;
+	
+	st25r95_reset(&reader_handler);
+
+	HAL_Delay(10);
+	st25r95_init(&reader_handler);
+	if(st25r95_IDN(&reader_handler) == ST25_OK)
+	{
+			char txt[] = "ST25R95 OK\r\n";
+			HAL_UART_Transmit(&huart1,(uint8_t*)txt, sizeof(txt)-1,100);
+	}
+	else
+	{
+			char txt[] = "ST25R95 FAIL\r\n";
+			HAL_UART_Transmit(&huart1,(uint8_t*)txt,sizeof(txt)-1,100);
+	}
+	
+  st25r95_init(&reader_handler);
+	
+  st25r95_calibrate(&reader_handler);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  st25r95_idle(&reader_handler);
+	
   while (1)
   {
     /* USER CODE END WHILE */
@@ -175,6 +256,7 @@ int main(void)
     pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
     HAL_Delay(1000);
 		
+		st25r95_service(&reader_handler);
 		
   }
   /* USER CODE END 3 */
@@ -203,7 +285,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -225,20 +307,6 @@ static void MX_SPI1_Init(void)
   * @retval None
   */
 
-/* USER CODE BEGIN SPI1_Init 2 */
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(hspi);
-	if(hspi->Instance == SPI1)
-	{
-		HAL_SPI_Transmit_DMA(&hspi1, TX_Buffer, 1);
-	}
-  /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_SPI_TxCpltCallback should be implemented in the user file
-   */
-}
-/* USER CODE END SPI1_Init 2 */
 
 
 /* USER CODE BEGIN 4 */
@@ -500,9 +568,12 @@ static void MX_GPIO_Init(void)
   
 	/*Configure GPIO pin : RFID_IRQ_Pin */
   GPIO_InitStruct.Pin = RFID_IRQ_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(RFID_IRQ_GPIO_Port, &GPIO_InitStruct);
+	
+	HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 	
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

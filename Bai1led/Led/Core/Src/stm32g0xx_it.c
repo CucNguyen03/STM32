@@ -135,7 +135,10 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 1 */
 }
-
+void EXTI4_15_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(RFID_IRQ_Pin);
+}
 /******************************************************************************/
 /* STM32G0xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
