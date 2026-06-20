@@ -135,7 +135,7 @@ static uint32_t CR95HF_SPIPollingCommand( void )
 		}
 		CR95HF_DelayMs(10);										
 	}
-	while(( pollingStatus	!= CR95HF_FLAG_DATA_READY) && (counter++ < 5));
+	while(( pollingStatus	!= CR95HF_FLAG_DATA_READY) && (counter++ < 30));
 	CR95HF_NSS_HIGH();	
 	return ERROR_TIMEOUT;	
 }
@@ -411,4 +411,25 @@ uint32_t CR95HF_AjustAnalogRegister(uint8_t ** resp)
 	{
 		return (*resp)[0];
 	}
+}
+
+uint32_t CR95HF_Inventory(uint8_t **resp, uint16_t *rcvLenght)
+{
+    const uint8_t inventoryCmd[] =
+    {
+        0x04,       // SendReceive
+        0x03,
+        0x26,       // Flags
+        0x01,       // Inventory
+        0x00        // Mask Length
+    };
+
+    if(CR95HF_SendReceive(inventoryCmd, resp) != NO_ERROR)
+    {
+        return ERROR_TIMEOUT;
+    }
+
+    *rcvLenght = (*resp)[1];
+
+    return NO_ERROR;
 }
