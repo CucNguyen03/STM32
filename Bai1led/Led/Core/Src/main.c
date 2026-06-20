@@ -33,6 +33,10 @@ uint8_t *resp;
 
 uint16_t nbTag;
 
+uint8_t uid[8];
+uint8_t block[32];
+uint16_t rcvLen;
+
 SPI_HandleTypeDef *hspi_nfc_reader;
 
 extern SPI_HandleTypeDef hspi1;
@@ -93,36 +97,6 @@ void pwm_set_duty(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t duty)
 	__HAL_TIM_SET_COMPARE(htim, Channel, ccr);
 }
 
-void RFID_Read_UID(void)
-{
-    char msg[128];
-    uint8_t *tagResp;
-    uint16_t tagLen;
-
-    if(CR95HF_Inventory(&tagResp, &tagLen) == 0)
-    {
-        if(tagResp[0] == 0x80)
-        {
-            sprintf(msg,"\r\nTag Found\r\nUID = ");
-            HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-
-            /* UID ISO15693 g?m 8 byte */
-            for(int i = 10; i >= 3; i--)
-            {
-                sprintf(msg,"%02X",tagResp[i]);
-                HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-            }
-
-            sprintf(msg,"\r\n");
-            HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-        }
-        else
-        {
-            sprintf(msg,"No Tag\r\n");
-            HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-        }
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -223,53 +197,7 @@ int main(void)
 			sprintf(msg,"ISO15693 Select Failed\r\n");
 			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	}
-	// gui lenh Inventory de tim the
-	uint8_t *tagResp;
-	uint16_t tagLen;
-
-	if(CR95HF_Inventory(&tagResp, &tagLen) == 0)
-	{
-			sprintf(msg,"\r\nInventory Response:\r\n");
-			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-
-			for(uint8_t i=0;i<tagLen+2;i++)
-			{
-					sprintf(msg,"%02X ",tagResp[i]);
-					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-			}
-
-			if(tagResp[0] == 0x80)
-			{
-					sprintf(msg,"\r\nUID = ");
-					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-
-					for(int i=10;i>=3;i--)
-					{
-							sprintf(msg,"%02X",tagResp[i]);
-							HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-					}
-
-					sprintf(msg,"\r\n");
-					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-			}
-	}
 	
-	if(tagResp[0] == 0x80)
-	{
-			// Có th?
-	}
-	else if(tagResp[0] == 0x87)
-	{
-			sprintf(msg,"No tag found\r\n");
-	}
-	else if(tagResp[0] == 0x8F)
-	{
-			sprintf(msg,"CRC error\r\n");
-	}
-	else
-	{
-			sprintf(msg,"Error = %02X\r\n",tagResp[0]);
-	}
 	 /* Setup all protocol */
   /* Setup all protocol */
   
@@ -320,8 +248,47 @@ int main(void)
 		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
     HAL_Delay(1000);
 		
-		RFID_Read_UID();
-    HAL_Delay(1000);
+		
+		if(CR95HF_GetUID(uid)== 0)
+		{
+				sprintf(msg,
+						"UID = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+						uid[7],uid[6],uid[5],uid[4],
+						uid[3],uid[2],uid[1],uid[0]);
+
+				HAL_UART_Transmit(&huart1,
+													(uint8_t*)msg,
+													strlen(msg),
+													1000);
+
+				if(CR95HF_ReadSingleBlock(0,block,&rcvLen)== 0)
+				{
+						sprintf(msg,
+						"Block0 = %02X %02X %02X %02X\r\n",
+						block[0],
+						block[1],
+						block[2],
+						block[3]);
+
+						HAL_UART_Transmit(&huart1,
+															(uint8_t*)msg,
+															strlen(msg),
+															1000);
+				}
+		}
+		else
+		{
+				sprintf(msg,"No Tag\r\n");
+
+				HAL_UART_Transmit(&huart1,
+													(uint8_t*)msg,
+													strlen(msg),
+													1000);
+		}
+
+		HAL_Delay(500);
+		
+		CR95HF_AjustAnalogRegister(&resp);
 	}
 		
   /* USER CODE END 3 */

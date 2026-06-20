@@ -153,17 +153,12 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>idnBuffer</ItemText>
+          <ItemText>uid[0]</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>u8_RxData</ItemText>
-        </Ww>
-        <Ww>
-          <count>2</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>u8_TxBuff</ItemText>
+          <ItemText>uid[1]</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
