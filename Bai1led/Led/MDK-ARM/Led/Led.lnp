@@ -1,9 +1,10 @@
 --cpu Cortex-M0+
 "led\startup_stm32g030xx.o"
+"led\st25r95.o"
+"led\drv_cr95hf.o"
 "led\main.o"
 "led\stm32g0xx_it.o"
 "led\stm32g0xx_hal_msp.o"
-"led\st25r95.o"
 "led\stm32g0xx_hal_spi.o"
 "led\stm32g0xx_hal_spi_ex.o"
 "led\stm32g0xx_hal_rcc.o"

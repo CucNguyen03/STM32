@@ -394,6 +394,16 @@
           <GroupName>Application/User/Core</GroupName>
           <Files>
             <File>
+              <FileName>st25r95.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\st25r95.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_cr95hf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\drv_cr95hf.c</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/main.c</FilePath>
@@ -407,11 +417,6 @@
               <FileName>stm32g0xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32g0xx_hal_msp.c</FilePath>
-            </File>
-            <File>
-              <FileName>st25r95.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\st25r95.c</FilePath>
             </File>
           </Files>
         </Group>

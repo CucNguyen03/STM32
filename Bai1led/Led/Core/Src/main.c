@@ -20,18 +20,20 @@
 #include "main.h"
 #include "string.h"
 #include "stdio.h"
-#include "st25r95.h"
-#include <stdlib.h>
-
-
+#include "drv_cr95hf.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 uint8_t RxChar;
 uint8_t u8_RxData;
 uint8_t u8_TxBuff[] = "Hello hello!!\r\n";
 
-volatile st25r95_handle reader_handler;
+uint8_t icVer;
+uint8_t *chipIdnResponse;
+uint8_t *resp;
+SPI_HandleTypeDef *hspi_nfc_reader;
 
+extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,7 +72,6 @@ static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
-volatile st25r95_handle reader_handler;
 /* USER CODE BEGIN PFP */
 
 
@@ -90,41 +91,6 @@ void pwm_set_duty(TIM_HandleTypeDef *htim, uint32_t Channel, uint8_t duty)
 }
 
 
-void reader_irq_pulse() {
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-  HAL_Delay(1);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-  HAL_Delay(8);
-}
-
-void reader_nss(uint8_t enable)
-{
-    HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port, SPI1_NSS_Pin, enable ? GPIO_PIN_RESET : GPIO_PIN_SET);
-}
-
-void reader_tx(uint8_t *data, size_t len) {
-  HAL_SPI_Transmit(&hspi1, data, len, HAL_MAX_DELAY);
-}
-
-void reader_rx(uint8_t *data, size_t len) {
-  HAL_SPI_Receive(&hspi1, data, len, HAL_MAX_DELAY);
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if(GPIO_Pin == RFID_IRQ_Pin)
-    {
-			reader_handler.irq_flag = 1;
-			HAL_GPIO_TogglePin(Led4_GPIO_Port, Led4_Pin);
-    }
-}
-
-void st25_card_callback(uint8_t *uid)
-{
-    char msg[64];
-    sprintf(msg, "UID: %02X %02X %02X %02X\r\n",uid[0], uid[1], uid[2], uid[3]);
-    HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
-}
 
 /* USER CODE END 0 */
 
@@ -162,89 +128,93 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
 
 	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
 	HAL_UART_Receive_IT(&huart1, &RxChar, 1);
-	 
-	HAL_GPIO_WritePin(RFID_PWR_EN_GPIO_Port, RFID_PWR_EN_Pin,  GPIO_PIN_SET);
-	HAL_Delay(50);
 	
-	 /* Setup all protocol */
-  /* Setup all protocol */
-  reader_handler.protocol = ST25_PROTOCOL_14443A;
-  reader_handler.tx_speed = ST25_26K_106K;
-  reader_handler.rx_speed = ST25_26K_106K;
-  reader_handler.timerw = 0x58;
-  reader_handler.ARC = 0xD1;
-  reader_handler.irq_flag = 0;
+	char msg[256];
+	uint32_t ret;
 
-  /* Bind BSP Functions */
-  reader_handler.nss = reader_nss;
-  reader_handler.tx = reader_tx;
-  reader_handler.rx = reader_rx;
-  reader_handler.irq_pulse = reader_irq_pulse;
-  reader_handler.callback = st25_card_callback;
+	hspi_nfc_reader = &hspi1;
+
+	HAL_GPIO_WritePin(RFID_PWR_EN_GPIO_Port,	RFID_PWR_EN_Pin,	GPIO_PIN_SET);
+
+	HAL_Delay(100);
+
+	HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port,	SPI1_NSS_Pin,GPIO_PIN_SET);
+
+	sprintf(msg,"\r\n===== CR95HF TEST =====\r\n");
+	HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	
-	st25r95_reset(&reader_handler);
+	ret = CR95HF_PORsequence();
+	sprintf(msg,"POR ret = %lu\r\n",ret);
+	HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 
-	HAL_Delay(10);
-	st25r95_init(&reader_handler);
-	if(st25r95_IDN(&reader_handler) == ST25_OK)
+	/* TEST HWINIT */
+	ret = CR95HF_HWInit(&icVer,&resp);
+
+	sprintf(msg,"HWInit ret = %lu\r\n",ret);
+	HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+	if(ret == 0)
 	{
-			char txt[] = "ST25R95 OK\r\n";
-			HAL_UART_Transmit(&huart1,(uint8_t*)txt, sizeof(txt)-1,100);
+			sprintf(msg,"IC Version = 0x%02X\r\n",icVer);
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+			sprintf(msg,"IDN Response : ");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+			for(uint8_t i=0;i<(resp[1]+2);i++)
+			{
+					sprintf(msg,"%02X ",resp[i]);
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			}
+
+			sprintf(msg,"\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	}
 	else
 	{
-			char txt[] = "ST25R95 FAIL\r\n";
-			HAL_UART_Transmit(&huart1,(uint8_t*)txt,sizeof(txt)-1,100);
+			sprintf(msg,"CR95HF INIT FAILED\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	}
-	
-  st25r95_init(&reader_handler);
-	
-  st25r95_calibrate(&reader_handler);
+
+	 /* Setup all protocol */
+  /* Setup all protocol */
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  st25r95_idle(&reader_handler);
-	
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_RESET);
+		GPIO_TypeDef* Led_Port[] = {Led0_GPIO_Port, Led1_GPIO_Port, Led2_GPIO_Port, Led3_GPIO_Port, Led4_GPIO_Port};
+		uint16_t Led_Pin[] = {Led0_Pin, Led1_Pin, Led2_Pin, Led3_Pin, Led4_Pin};
+
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
+		}
 		HAL_Delay(500);
+
 		
-		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_SET);
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
+		}
 		HAL_Delay(500);
-		
-		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_RESET);
-		HAL_Delay(500);
-		HAL_GPIO_WritePin(Led0_GPIO_Port, Led0_Pin, GPIO_PIN_SET);
-		
-		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_RESET);
-		HAL_Delay(500);
-		HAL_GPIO_WritePin(Led1_GPIO_Port, Led1_Pin, GPIO_PIN_SET);
-		
-		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_RESET);
-		HAL_Delay(500);
-		HAL_GPIO_WritePin(Led2_GPIO_Port, Led2_Pin, GPIO_PIN_SET);
-		
-		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_RESET);
-		HAL_Delay(500);
-		HAL_GPIO_WritePin(Led3_GPIO_Port, Led3_Pin, GPIO_PIN_SET);
+
+	
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
+				HAL_Delay(500);
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
+		}
 		
 
 		
@@ -256,60 +226,14 @@ int main(void)
     pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
     HAL_Delay(1000);
 		
-		st25r95_service(&reader_handler);
+		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
+    HAL_Delay(1000);
+	}
 		
-  }
   /* USER CODE END 3 */
 }
 
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
 
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 7;
-  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
-}
-
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-
-
-
-/* USER CODE BEGIN 4 */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -337,13 +261,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
     }
 }
-/* USER CODE END 3 */
 /**
   * @brief System Clock Configuration
   * @retval None
   */
-
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -378,6 +299,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
 }
 
 /**
@@ -523,6 +484,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 
 }
 
@@ -547,11 +511,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(Led4_GPIO_Port, Led4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin|RFID_PWR_EN_Pin, GPIO_PIN_RESET);
-	
-	/*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin
+                          |RFID_IRQ_Pin|RFID_PWR_EN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port, SPI1_NSS_Pin, GPIO_PIN_SET);
-	
+
   /*Configure GPIO pin : Led4_Pin */
   GPIO_InitStruct.Pin = Led4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -559,22 +524,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Led4_GPIO_Port, &GPIO_InitStruct);
 
- /*Configure GPIO pins : Led0_Pin Led1_Pin Led2_Pin Led3_Pin SPI1_NSS_Pin RFID_PWR_EN_Pin */
-  GPIO_InitStruct.Pin = Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin|SPI1_NSS_Pin|RFID_PWR_EN_Pin;
+  /*Configure GPIO pins : Led0_Pin Led1_Pin Led2_Pin Led3_Pin
+                           SPI1_NSS_Pin RFID_IRQ_Pin RFID_PWR_EN_Pin */
+  GPIO_InitStruct.Pin = Led0_Pin|Led1_Pin|Led2_Pin|Led3_Pin
+                          |SPI1_NSS_Pin|RFID_IRQ_Pin|RFID_PWR_EN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-  
-	/*Configure GPIO pin : RFID_IRQ_Pin */
-  GPIO_InitStruct.Pin = RFID_IRQ_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(RFID_IRQ_GPIO_Port, &GPIO_InitStruct);
-	
-	HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-	
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */

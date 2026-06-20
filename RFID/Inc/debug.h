@@ -1,0 +1,148 @@
+#ifndef DEGBUG_H
+#define DEGBUG_H
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+// Device-specific definition
+#include "main.h"
+
+#define INSIDE_TASK_DEBUG_BUFFER_LENGHT							128
+
+
+#define str(x) #x
+#define xstr(x) str(x)
+
+
+/* USE_FULL_ASSERT */
+#ifdef  USE_FULL_ASSERT	
+#define ASSERT_FAIL()  assert_failed((uint8_t *)__FILE__, __LINE__)
+#else
+#define ASSERT_FAIL() 
+#endif 
+
+
+typedef enum																			// ErrorCode
+{
+  NO_ERROR 																	= 0,
+	ERROR_GENERIC,
+	// Error from HAL lib
+	ERROR_HAL_FAILED,
+	// In/Out arg error
+	ERROR_PARAMETER,
+	// Memory error
+	ERROR_BUFFER_SIZE,
+	ERROR_OS_NO_MEMORY,	
+	// Timing error
+	ERROR_TIMEOUT,
+	// Flash error
+	ERROR_FLASH_SPI_INIT											= 1000,
+	ERROR_FLASH_SPI_READ_WRITE,
+	ERROR_FLASH_SPI_ERASE,
+	ERROR_FLASH_SPI_JEDEC_ID,	
+	ERROR_FLASH_SPI_READ_RECORD,
+	ERROR_FLASH_SPI_RECORD_WRONG_ADDRESS,
+	ERROR_FLASH_SPI_RECORD_EMPTY,	
+	ERROR_FLASH_SPI_RECORD_CORRUPTED,
+	ERROR_FLASH_SPI_NO_MORE_RECORD,
+	ERROR_FLASH_SPI_TX_RECORD_QUEUE_FULL,
+	
+	// RFID error
+	ERROR_NFC_INVALID_IC_VERSION							= 2000,
+	ERROR_NFC_INVALID_COMMAND_LENGHT,
+	ERROR_NFC_INVALID_PROTOCOL,	
+	ERROR_NFC_COMMUNICATION,
+	ERROR_NFC_FRAME_WAIT_TIMEOUT_OR_NO_TAG,
+	ERROR_NFC_INVALID_SOF,
+	ERROR_NFC_RECEIVE_BUFFER_OVERFLOW,
+	ERROR_NFC_FRAMING_ERROR,
+	ERROR_NFC_EGT_TIMEOUT,
+	ERROR_NFC_INVALID_LENGTH,
+	ERROR_NFC_CRC_CHECK_FAILED,
+	ERROR_NFC_RECEPTION_LOST_WITHOUT_EOF,
+	ERROR_NFC_INIT_ISO15693,
+	ERROR_NFC_SELECT_PROTOCOL,
+	ERROR_NFC_SELECT_FIELD_OFF,	
+	ERROR_NFC_ISO15693_GetUID,
+	ERROR_NFC_ISO15693_DEFAULT,
+	// Gps error
+	ERROR_NMEA_LENGHT_OVER_BUFFER							= 3000,
+	ERROR_GNSS_PACKET_CORRUPTED,
+	ERROR_GNSS_TASK,
+	// DCE error
+	ERROR_AT_COMMAND_TX												= 4000,
+	ERROR_AT_COMMAND_FORMAT,
+	ERROR_AT_COMMAND_FAILED,	
+	ERROR_AT_COMMAND_PARAMETER,
+	ERROR_READ_IMEI,
+	ERROR_READ_CCID,
+	ERROR_READ_RSSI,
+	ERROR_TcpAck,
+	ERROR_CELLINFO_URC_SYNTAX,
+	ERROR_GPRS_CONNECTION_NOT_ESTABLISHED,
+	ERROR_GPRS_DATA_SEND_FAILED,
+	ERROR_GPRS_READ_RXDATA_FAILED,
+	ERROR_MC20_RX_DMA_BUFFER_EMPTY,
+	ERROR_GPRS_QUERY_ACK,
+	ERROR_SMS_LOCATION,
+	ERROR_URC_PROCESS_FAILED,
+	ERROR_READ_SMS,	
+	ERROR_SEND_SMS,
+	ERROR_INPUT_USSD_CODE_LENGHT,
+	ERROR_DCE_EXECUTE_TCPIP_TASK,
+	ERROR_DCE_ACTIVE_GPRS_CONTEXT,
+	ERROR_DCE_DEACTIVE_GPRS_CONTEXT,	
+	ERROR_DCE_CONNECTION_STATE,
+	ERROR_GPRS_PACKET_BUILDER,
+	ERROR_GPRS_RX_CHECKSUM,
+	ERROR_GPRS_GET_FILE_HANDLE,
+	
+	// Time stamp error
+	ERROR_READ_RTC_MUTEX_TIMEOUT							= 5000,
+	ERROR_SET_RTC_MUTEX_TIMEOUT,
+	ERROR_HAL_READ_RTC_TIME,
+	ERROR_HAL_SET_RTC_TIME,
+	ERROR_HAL_READ_RTC_DATE,
+	ERROR_HAL_SET_RTC_DATE,	
+	
+	// Remote command error
+	ERROR_REMOTE_COMMAND_FORMAT								= 6000,
+	ERROR_REMOTE_COMMAND_PASSWORD,
+	ERROR_REMOTE_COMMAND_SOURCE_NOT_ALLOWED,
+	ERROR_REMOTE_PHONENUMBER_INVALID,
+	ERROR_REMOTE_COMMAND_FIELD_LENGHT,	
+	ERROR_REMOTE_GPRS_COMMAND_PROCESSING,
+	
+	// Camera error
+	ERROR_CAMERA_NOT_FOUND										= 7000,
+	ERROR_CAMERA_NOT_ACK,
+
+	////////////
+}ErrorCode;
+
+
+
+void Debug_Printf(const char * logMsg);
+void Debug_Logout_Error(ErrorCode errorCode, const char * moduleName, uint32_t ret);
+void Debug_ShowBufferAsHexadecimal(uint8_t * hexBytes, uint32_t hexLen);
+void Debug_ShowBufferAsHexadecimal_Title(uint8_t * hexBytes, uint32_t hexLen, const char * title);
+void Debug_SendSystemParameterToLogger(void);
+void Debug_MakeBeepSound(uint32_t beepNumber, uint32_t dutyPercent, uint32_t activeTime, uint32_t silentTime);
+void Debug_MakeBuzzerSoundOnSystemError(uint32_t beepNumber, uint32_t dutyPercent);	 
+void loopDelayMs(uint32_t ms);
+void Debug_OverGprsTextProtocol(const char * sourceName, const char * logMsg);
+void SerialLog_Print(const char* format, ...);
+void SerialLog_PrintLn(const char* format, ...);
+
+
+/**
+  * @}
+  */	 
+
+	 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* DEGBUG_H */
