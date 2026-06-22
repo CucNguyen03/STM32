@@ -513,7 +513,7 @@ uint32_t CR95HF_GetCardSystemInfo(uint8_t **resp, uint16_t *rcvLength)
 
     return NO_ERROR;
 }
-
+// Read data tag RFID
 uint32_t CR95HF_ReadSingleBlock(uint8_t blockNo,uint8_t data[4])
 {
     uint8_t *resp;
@@ -579,6 +579,91 @@ uint32_t CR95HF_Read_First16Block(uint8_t **rcvData,
 
     *rcvData = gBlockBuffer;
     *rcvLenght = sizeof(gBlockBuffer);
+
+    return NO_ERROR;
+}
+
+// Write data
+uint32_t CR95HF_WriteSingleBlock(uint8_t blockNo,
+                                 uint8_t data[4])
+{
+    uint8_t *resp;
+
+    uint8_t cmd[] =
+    {
+        CR95HF_COMMAND_SEND_RECEIVE,
+        0x0F,       // Length
+
+        0x22,       // Addressed + High Data Rate
+        0x21,       // Write Single Block
+
+        // UID LSB First
+        0xC8,
+        0x84,
+        0x15,
+        0xB4,
+        0x50,
+        0x01,
+        0x04,
+        0xE0,
+
+        blockNo,
+
+        data[0],
+        data[1],
+        data[2],
+        data[3]
+    };
+
+    if(CR95HF_SendReceive(cmd, &resp) != NO_ERROR)
+    {
+        return CR95HF_ERRORCODE_TIMEOUT;
+    }
+
+    /*
+        Response OK:
+
+        80 01 00
+
+        resp[0] = 0x80
+        resp[2] = 0x00
+    */
+
+    if(resp[0] != 0x80)
+    {
+        return resp[0];
+    }
+
+    if(resp[2] != 0x00)
+    {
+        return resp[2];
+    }
+
+    return NO_ERROR;
+}
+
+
+uint32_t CR95HF_Write_First16Block(uint8_t *blocksData)
+{
+    uint32_t ret;
+    uint8_t blockData[4];
+
+    for(uint8_t block = 8; block < 16; block++)
+    {
+        memcpy(blockData,
+               &blocksData[(block - 8) * 4],
+               4);
+
+        ret = CR95HF_WriteSingleBlock(block,
+                                      blockData);
+
+        if(ret != NO_ERROR)
+        {
+            return ret;
+        }
+
+        HAL_Delay(20);
+    }
 
     return NO_ERROR;
 }

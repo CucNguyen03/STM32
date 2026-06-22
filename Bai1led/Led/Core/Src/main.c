@@ -214,6 +214,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		//Led On
 		GPIO_TypeDef* Led_Port[] = {Led0_GPIO_Port, Led1_GPIO_Port, Led2_GPIO_Port, Led3_GPIO_Port, Led4_GPIO_Port};
 		uint16_t Led_Pin[] = {Led0_Pin, Led1_Pin, Led2_Pin, Led3_Pin, Led4_Pin};
 
@@ -223,14 +224,14 @@ int main(void)
 		}
 		HAL_Delay(500);
 
-		
+		// Led off
 		for(int i = 0; i < 5; i++)
 		{
 				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
 		}
 		HAL_Delay(500);
 
-	
+		// Nhay led
 		for(int i = 0; i < 5; i++)
 		{
 				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
@@ -239,7 +240,7 @@ int main(void)
 		}
 		
 
-		
+		// Buzzer PWM1
 		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
     pwm_set_duty(&htim1, TIM_CHANNEL_1, 20); 
@@ -248,10 +249,11 @@ int main(void)
     pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
     HAL_Delay(1000);
 		
+		//UART
 		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
     HAL_Delay(1000);
 		
-		
+		// Get ID Tag
 		ret = CR95HF_GetUID(uid);
     if(ret == 0)
     {
@@ -277,6 +279,7 @@ int main(void)
 
     HAL_Delay(500);
 		
+		//Get Infor Tag
 		ret = CR95HF_GetCardSystemInfo(&sysInfo,&sysLen);
 		if(ret == 0)
 		{
@@ -299,7 +302,7 @@ int main(void)
 		}
 
 		char msg[128];
-
+		
 		ret = CR95HF_Read_First16Block(&data, &len);
 
 		if(ret == 0)
@@ -355,10 +358,7 @@ int main(void)
 										data[block * 4 + 2],
 										data[block * 4 + 3]);
 
-						HAL_UART_Transmit(&huart1,
-															(uint8_t*)msg,
-															strlen(msg),
-															1000);
+						HAL_UART_Transmit(&huart1,(uint8_t*)msg, strlen(msg),	1000);
 				}
 
 				sprintf(msg,"\r\n");
@@ -369,12 +369,63 @@ int main(void)
 				sprintf(msg,"Read Error = %lu\r\n",ret);
 				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 		}
+		
+		// WriteTAg
+		
+		uint8_t wrData[4] =	{'T','E','S','T'};
+		ret = CR95HF_WriteSingleBlock(8, wrData);
+		if(ret == 0)
+		{
+				sprintf(msg,"Write Block 08 OK\r\n");
+		}
+		else
+		{
+				sprintf(msg,"Write Block 08 Error=%lu\r\n",ret);
+		}
+
+		HAL_UART_Transmit(&huart1,
+											(uint8_t*)msg,
+											strlen(msg),
+											1000);
+		
+		
+		uint8_t rdData[4];
+
+		ret = CR95HF_ReadSingleBlock(8, rdData);
+
+		sprintf(msg,
+						"Block08 : %02X %02X %02X %02X\r\n",
+						rdData[0],
+						rdData[1],
+						rdData[2],
+						rdData[3]);
+
+		HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+		
+		// Update read tag 
+		/* ASCII */
+				sprintf(msg,"\r\n== ASCII ==\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+				for(uint16_t i = 0; i < len; i++)
+				{
+						if((data[i] >= 32) && (data[i] <= 126))
+						{
+								msg[0] = data[i];
+						}
+						else
+						{
+								msg[0] = '.';
+						}
+
+						HAL_UART_Transmit(&huart1,(uint8_t*)msg,1,1000);
+				}
 	}
 		
   /* USER CODE END 3 */
 }
 
-
+ /* USER CODE BEGIN 4 */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -402,6 +453,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
     }
 }
+
+ /* USER CODE END 4 */
 /**
   * @brief System Clock Configuration
   * @retval None
