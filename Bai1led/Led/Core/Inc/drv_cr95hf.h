@@ -142,6 +142,7 @@ uint32_t CR95HF_PORsequence( void );
 uint32_t CR95HF_ReadIDN(uint8_t **pTResponse);
 uint32_t CR95HF_GetUID(uint8_t uid[8]);
 uint32_t CR95HF_PollField(void);
+uint32_t CR95HF_ReadSingleBlock(uint8_t blockNo,uint8_t data[4]);
 	/*
 	else if(uCR95HF_RxBuffer[0] == 0x86)
 	{

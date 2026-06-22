@@ -30,14 +30,15 @@ uint8_t u8_TxBuff[] = "Hello hello!!\r\n";
 uint8_t icVer;
 uint8_t *chipIdnResponse;
 uint8_t *resp;
-
 uint16_t nbTag;
-
 uint8_t uid[8];
-uint8_t block[32];
-uint16_t rcvLen;
+uint8_t *data;
+uint16_t len;
+
 uint32_t ret;
 
+uint8_t *sysInfo;
+uint16_t sysLen;
 SPI_HandleTypeDef *hspi_nfc_reader;
 
 extern SPI_HandleTypeDef hspi1;
@@ -200,30 +201,6 @@ int main(void)
 	}
 	
 
-	ret = CR95HF_GetUID(uid);
-
-	if(ret == 0)
-	{
-			sprintf(msg,
-							"UID = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-							uid[0], uid[1], uid[2], uid[3],
-							uid[4], uid[5], uid[6], uid[7]);
-
-			HAL_UART_Transmit(&huart1,
-												(uint8_t*)msg,
-												strlen(msg),
-												1000);
-	}
-	else
-	{
-			sprintf(msg,"No Tag, Error=%lu\r\n",ret);
-			HAL_UART_Transmit(&huart1,
-												(uint8_t*)msg,
-												strlen(msg),
-												1000);
-	}
-	
-
 	 /* Setup all protocol */
   /* Setup all protocol */
   
@@ -275,8 +252,7 @@ int main(void)
     HAL_Delay(1000);
 		
 		
-		 ret = CR95HF_GetUID(uid);
-
+		ret = CR95HF_GetUID(uid);
     if(ret == 0)
     {
         sprintf(msg,
@@ -300,7 +276,99 @@ int main(void)
     }
 
     HAL_Delay(500);
+		
+		ret = CR95HF_GetCardSystemInfo(&sysInfo,&sysLen);
+		if(ret == 0)
+		{
+				sprintf(msg,"SystemInfo: ");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 
+				for(uint8_t i=0;i<(sysLen+2);i++)
+				{
+						sprintf(msg,"%02X ",sysInfo[i]);
+						HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+				}
+
+				sprintf(msg,"\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+		}
+		else
+		{
+				sprintf(msg,"GetSystemInfo Error=%lu\r\n",ret);
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+		}
+
+		char msg[128];
+
+		ret = CR95HF_Read_First16Block(&data, &len);
+
+		if(ret == 0)
+		{
+				/* HEX DUMP */
+				sprintf(msg,"\r\n== HEX DUMP ==\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+				for(uint16_t i = 0; i < len; i++)
+				{
+						sprintf(msg,"%02X ",data[i]);
+						HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+						if(((i + 1) % 16) == 0)
+						{
+								sprintf(msg,"\r\n");
+								HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+						}
+				}
+
+				/* ASCII */
+				sprintf(msg,"\r\n== ASCII ==\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+				for(uint16_t i = 0; i < len; i++)
+				{
+						if((data[i] >= 32) && (data[i] <= 126))
+						{
+								msg[0] = data[i];
+						}
+						else
+						{
+								msg[0] = '.';
+						}
+
+						HAL_UART_Transmit(&huart1,(uint8_t*)msg,1,1000);
+				}
+
+				sprintf(msg,"\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+				/* BLOCK DUMP */
+				sprintf(msg,"\r\n== BLOCK DUMP ==\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+				for(uint8_t block = 0; block < 28; block++)
+				{
+						sprintf(msg,
+										"Block %02d : %02X %02X %02X %02X\r\n",
+										block,
+										data[block * 4 + 0],
+										data[block * 4 + 1],
+										data[block * 4 + 2],
+										data[block * 4 + 3]);
+
+						HAL_UART_Transmit(&huart1,
+															(uint8_t*)msg,
+															strlen(msg),
+															1000);
+				}
+
+				sprintf(msg,"\r\n");
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+		}
+		else
+		{
+				sprintf(msg,"Read Error = %lu\r\n",ret);
+				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+		}
 	}
 		
   /* USER CODE END 3 */

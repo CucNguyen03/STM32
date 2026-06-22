@@ -485,3 +485,100 @@ uint32_t CR95HF_GetUID(uint8_t uid[8])
 
     return NO_ERROR;
 }
+
+uint32_t CR95HF_GetCardSystemInfo(uint8_t **resp, uint16_t *rcvLength)
+{
+    uint8_t *pResp;
+
+    const uint8_t cmd[] =
+    {
+        CR95HF_COMMAND_SEND_RECEIVE,
+        0x02,
+        0x02,   // Flags = High Data Rate
+        0x2B    // Get System Information
+    };
+
+    if(CR95HF_SendReceive(cmd, &pResp) != NO_ERROR)
+    {
+        return ERROR_TIMEOUT;
+    }
+
+    if(pResp[0] != 0x80)
+    {
+        return pResp[0];
+    }
+
+    *resp      = pResp;
+    *rcvLength = pResp[1];
+
+    return NO_ERROR;
+}
+
+uint32_t CR95HF_ReadSingleBlock(uint8_t blockNo,uint8_t data[4])
+{
+    uint8_t *resp;
+
+    uint8_t cmd[] =
+    {
+        CR95HF_COMMAND_SEND_RECEIVE,
+        0x0B,
+
+        0x22,       // Addressed + High Data Rate
+        0x20,       // Read Single Block
+
+        0xC8,
+        0x84,
+        0x15,
+        0xB4,
+        0x50,
+        0x01,
+        0x04,
+        0xE0,
+
+        blockNo
+    };
+
+    if(CR95HF_SendReceive(cmd, &resp) != NO_ERROR)
+    {
+        return ERROR_TIMEOUT;
+    }
+
+    if(resp[0] != 0x80)
+    {
+        return resp[0];
+    }
+
+    memcpy(data, &resp[3], 4);
+
+    return NO_ERROR;
+}
+
+static uint8_t gBlockBuffer[64];
+
+uint32_t CR95HF_Read_First16Block(uint8_t **rcvData,
+                                  uint16_t *rcvLenght)
+{
+    uint8_t blockData[4];
+    uint32_t ret;
+
+    memset(gBlockBuffer, 0, sizeof(gBlockBuffer));
+
+    for(uint8_t block = 0; block < 16; block++)
+    {
+        ret = CR95HF_ReadSingleBlock(block, blockData);
+
+        if(ret != NO_ERROR)
+        {
+            return ret;
+        }
+
+        memcpy(&gBlockBuffer[block * 4],
+               blockData,
+               4);
+    }
+
+    *rcvData = gBlockBuffer;
+    *rcvLenght = sizeof(gBlockBuffer);
+
+    return NO_ERROR;
+}
