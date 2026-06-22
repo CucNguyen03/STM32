@@ -36,6 +36,7 @@ uint16_t nbTag;
 uint8_t uid[8];
 uint8_t block[32];
 uint16_t rcvLen;
+uint32_t ret;
 
 SPI_HandleTypeDef *hspi_nfc_reader;
 
@@ -187,7 +188,7 @@ int main(void)
 	}
 	
 	// chon giao thuc
-	if(CR95HF_SelectProtocol_ISO15693(0x00, &resp) == 0)
+	if(CR95HF_SelectProtocol_ISO15693(0x0D, &resp) == 0)
 	{
 			sprintf(msg,"ISO15693 Selected\r\n");
 			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
@@ -198,6 +199,31 @@ int main(void)
 			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	}
 	
+
+	ret = CR95HF_GetUID(uid);
+
+	if(ret == 0)
+	{
+			sprintf(msg,
+							"UID = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+							uid[0], uid[1], uid[2], uid[3],
+							uid[4], uid[5], uid[6], uid[7]);
+
+			HAL_UART_Transmit(&huart1,
+												(uint8_t*)msg,
+												strlen(msg),
+												1000);
+	}
+	else
+	{
+			sprintf(msg,"No Tag, Error=%lu\r\n",ret);
+			HAL_UART_Transmit(&huart1,
+												(uint8_t*)msg,
+												strlen(msg),
+												1000);
+	}
+	
+
 	 /* Setup all protocol */
   /* Setup all protocol */
   
@@ -249,46 +275,32 @@ int main(void)
     HAL_Delay(1000);
 		
 		
-		if(CR95HF_GetUID(uid)== 0)
-		{
-				sprintf(msg,
-						"UID = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-						uid[7],uid[6],uid[5],uid[4],
-						uid[3],uid[2],uid[1],uid[0]);
+		 ret = CR95HF_GetUID(uid);
 
-				HAL_UART_Transmit(&huart1,
-													(uint8_t*)msg,
-													strlen(msg),
-													1000);
+    if(ret == 0)
+    {
+        sprintf(msg,
+                "UID: %02X%02X%02X%02X%02X%02X%02X%02X\r\n",
+                uid[7],uid[6],uid[5],uid[4],
+                uid[3],uid[2],uid[1],uid[0]);
 
-				if(CR95HF_ReadSingleBlock(0,block,&rcvLen)== 0)
-				{
-						sprintf(msg,
-						"Block0 = %02X %02X %02X %02X\r\n",
-						block[0],
-						block[1],
-						block[2],
-						block[3]);
+        HAL_UART_Transmit(&huart1,
+                          (uint8_t*)msg,
+                          strlen(msg),
+                          1000);
+    }
+    else
+    {
+        sprintf(msg,"No Tag (%lu)\r\n",ret);
 
-						HAL_UART_Transmit(&huart1,
-															(uint8_t*)msg,
-															strlen(msg),
-															1000);
-				}
-		}
-		else
-		{
-				sprintf(msg,"No Tag\r\n");
+        HAL_UART_Transmit(&huart1,
+                          (uint8_t*)msg,
+                          strlen(msg),
+                          1000);
+    }
 
-				HAL_UART_Transmit(&huart1,
-													(uint8_t*)msg,
-													strlen(msg),
-													1000);
-		}
+    HAL_Delay(500);
 
-		HAL_Delay(500);
-		
-		CR95HF_AjustAnalogRegister(&resp);
 	}
 		
   /* USER CODE END 3 */

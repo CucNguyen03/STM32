@@ -375,7 +375,7 @@ uint32_t CR95HF_SelectProtocol_ISO15693(const uint8_t parameters,uint8_t ** pTRe
 		}
 	}		
 	
-	uint8_t selectProtocolCmd[] = {CR95HF_COMMAND_PROTOCOL_SELECT,0x02,0x01,0x01};
+uint8_t selectProtocolCmd[] = {CR95HF_COMMAND_PROTOCOL_SELECT,0x02,0x01,0x01};
 	selectProtocolCmd[3] = parameters;
   if(CR95HF_SendReceive(selectProtocolCmd, pTResponse) != NO_ERROR)
 	{
@@ -391,7 +391,18 @@ uint32_t CR95HF_SelectProtocol_ISO15693(const uint8_t parameters,uint8_t ** pTRe
 		return(*pTResponse)[0];
 	}
 }
+uint32_t CR95HF_PollField(void)
+{
+    uint8_t cmd[] =
+    {
+        CR95HF_COMMAND_POLL_FIELD,
+        0x00
+    };
 
+    uint8_t *resp;
+
+    return CR95HF_SendReceive(cmd,&resp);
+}
 uint32_t CR95HF_AjustAnalogRegister(uint8_t ** resp)
 {
 	
@@ -413,23 +424,47 @@ uint32_t CR95HF_AjustAnalogRegister(uint8_t ** resp)
 	}
 }
 
-uint32_t CR95HF_Inventory(uint8_t **resp, uint16_t *rcvLenght)
+uint32_t CR95HF_Inventory(uint8_t **resp, uint16_t *rcvLength)
 {
-    const uint8_t inventoryCmd[] =
-		{
-				CR95HF_COMMAND_SEND_RECEIVE,
-				0x03,
-				0x26,      // Flags
-				0x01,      // Inventory
-				0x00       // Mask length
-		};
+    uint8_t *pResp;
 
-    if(CR95HF_SendReceive(inventoryCmd, resp) != NO_ERROR)
+    const uint8_t cmd[] =
+    {
+        CR95HF_COMMAND_SEND_RECEIVE,
+        0x03,
+        0x26,
+        0x01,
+        0x00
+    };
+
+    if(CR95HF_SendReceive(cmd, &pResp) != NO_ERROR)
     {
         return ERROR_TIMEOUT;
     }
 
-    *rcvLenght = (*resp)[1];
+    /*
+     * CR95HF success = 0x80
+     */
+    if(pResp[0] != 0x80)
+    {
+        switch(pResp[0])
+        {
+            case 0x86: return ERROR_NFC_COMMUNICATION;
+            case 0x87: return ERROR_NFC_FRAME_WAIT_TIMEOUT_OR_NO_TAG;
+            case 0x88: return ERROR_NFC_INVALID_SOF;
+            case 0x89: return ERROR_NFC_RECEIVE_BUFFER_OVERFLOW;
+            case 0x8A: return ERROR_NFC_FRAMING_ERROR;
+            case 0x8B: return ERROR_NFC_EGT_TIMEOUT;
+            case 0x8C: return ERROR_NFC_INVALID_LENGTH;
+            case 0x8D: return ERROR_NFC_CRC_CHECK_FAILED;
+            case 0x8E: return ERROR_NFC_RECEPTION_LOST_WITHOUT_EOF;
+            default:
+                return ERROR_NFC_ISO15693_DEFAULT;
+        }
+    }
+
+    *resp = pResp;
+    *rcvLength = pResp[1];
 
     return NO_ERROR;
 }
@@ -441,69 +476,12 @@ uint32_t CR95HF_GetUID(uint8_t uid[8])
     uint32_t ret;
 
     ret = CR95HF_Inventory(&resp, &len);
-
     if(ret != NO_ERROR)
+    {
         return ret;
-
-    /*
-        Inventory response:
-
-        resp[0] = 0x80
-        resp[1] = length
-
-        resp[2] = Flags
-        resp[3] = DSFID
-
-        resp[4..11] = UID
-    */
-
-    if(resp[0] != 0x80)
-        return resp[0];
-
-    if(len < 10)
-        return ERROR_TIMEOUT;
+    }
 
     memcpy(uid, &resp[4], 8);
-
-    return NO_ERROR;
-}
-
-uint32_t CR95HF_ReadSingleBlock(uint8_t blockAddr,
-                                uint8_t *blockData,
-                                uint16_t *rcvLength)
-{
-    uint8_t *resp;
-
-    uint8_t cmd[] =
-    {
-        CR95HF_COMMAND_SEND_RECEIVE,
-        0x04,
-        0x02,       // Flags High Data Rate
-        0x20,       // Read Single Block
-        blockAddr,
-        0x00
-    };
-
-    if(CR95HF_SendReceive(cmd, &resp) != NO_ERROR)
-    {
-        return ERROR_TIMEOUT;
-    }
-
-    *rcvLength = resp[1];
-
-    if(resp[0] != 0x80)
-    {
-        return resp[0];
-    }
-
-    /*
-        Response:
-
-        resp[2] = Flags
-        resp[3...] = Data
-    */
-
-    memcpy(blockData, &resp[3], (*rcvLength)-1);
 
     return NO_ERROR;
 }
