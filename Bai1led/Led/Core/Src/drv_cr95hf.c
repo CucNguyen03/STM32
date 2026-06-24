@@ -555,8 +555,7 @@ uint32_t CR95HF_ReadSingleBlock(uint8_t blockNo,uint8_t data[4])
 
 static uint8_t gBlockBuffer[64];
 
-uint32_t CR95HF_Read_First16Block(uint8_t **rcvData,
-                                  uint16_t *rcvLenght)
+uint32_t CR95HF_Read_First16Block(uint8_t **rcvData,uint16_t *rcvLenght)
 {
     uint8_t blockData[4];
     uint32_t ret;
@@ -584,8 +583,7 @@ uint32_t CR95HF_Read_First16Block(uint8_t **rcvData,
 }
 
 // Write data
-uint32_t CR95HF_WriteSingleBlock(uint8_t blockNo,
-                                 uint8_t data[4])
+uint32_t CR95HF_WriteSingleBlock(uint8_t blockNo,uint8_t data[4])
 {
     uint8_t *resp;
 
@@ -620,42 +618,32 @@ uint32_t CR95HF_WriteSingleBlock(uint8_t blockNo,
         return CR95HF_ERRORCODE_TIMEOUT;
     }
 
-    /*
-        Response OK:
-
-        80 01 00
-
-        resp[0] = 0x80
-        resp[2] = 0x00
-    */
 
     if(resp[0] != 0x80)
     {
         return resp[0];
     }
 
-    if(resp[2] != 0x00)
-    {
-        return resp[2];
-    }
+    if(resp[1] > 0)
+		{
+				if(resp[2] != 0x00)
+						return resp[2];
+		}
 
-    return NO_ERROR;
+    HAL_Delay(20);
+		return NO_ERROR;
 }
 
 
 uint32_t CR95HF_Write_First16Block(uint8_t *blocksData)
 {
     uint32_t ret;
-    uint8_t blockData[4];
 
-    for(uint8_t block = 8; block < 16; block++)
+    for(uint8_t block = 0; block < 16; block++)
     {
-        memcpy(blockData,
-               &blocksData[(block - 8) * 4],
-               4);
-
-        ret = CR95HF_WriteSingleBlock(block,
-                                      blockData);
+        ret = CR95HF_WriteSingleBlock(
+                block,
+                &blocksData[block * 4]);
 
         if(ret != NO_ERROR)
         {
@@ -664,6 +652,98 @@ uint32_t CR95HF_Write_First16Block(uint8_t *blocksData)
 
         HAL_Delay(20);
     }
+
+    return NO_ERROR;
+}
+
+uint32_t CR95HF_WriteString(uint8_t startBlock,char *text)
+{
+    uint8_t buffer[4];
+
+    while(startBlock < 16)
+    {
+        memset(buffer,0,4);
+
+        for(uint8_t i=0;i<4 && *text;i++)
+        {
+            buffer[i] = *text++;
+        }
+
+        uint32_t ret =
+            CR95HF_WriteSingleBlock(startBlock, buffer);
+
+        if(ret != NO_ERROR)
+            return ret;
+
+        HAL_Delay(20);     // thêm
+
+        startBlock++;
+
+        if(*text == 0)
+            break;
+    }
+
+    return NO_ERROR;
+}
+
+uint32_t CR95HF_ReadString( uint8_t startBlock,uint8_t numberBlock, char *text)
+{
+    uint8_t temp[4];
+    uint16_t index = 0;
+
+
+    for(uint8_t block = 0;
+        block < numberBlock;
+        block++)
+    {
+        uint32_t ret =
+            CR95HF_ReadSingleBlock(
+                    startBlock + block,
+                    temp);
+
+
+        if(ret != NO_ERROR)
+        {
+            return ret;
+        }
+
+
+        for(uint8_t i=0;i<4;i++)
+        {
+            text[index++] = temp[i];
+
+
+            if(temp[i] == '\0')
+            {
+                return NO_ERROR;
+            }
+        }
+    }
+    text[index] = '\0';
+    return NO_ERROR;
+}
+
+uint32_t CR95HF_ClearBlocks(uint8_t startBlock, uint8_t endBlock)
+{
+    uint8_t empty[4] = {0,0,0,0};
+
+
+    for(uint8_t block = startBlock;
+        block <= endBlock;
+        block++)
+    {
+        uint32_t ret =
+            CR95HF_WriteSingleBlock(
+                    block,
+                    empty);
+
+
+        if(ret != NO_ERROR)
+        {
+            return ret;
+        }
+    }
+
 
     return NO_ERROR;
 }

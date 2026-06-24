@@ -43,6 +43,15 @@ SPI_HandleTypeDef *hspi_nfc_reader;
 
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart1;
+
+uint8_t allData[28 * 4];
+uint8_t blockData[4];
+
+#define UART_RX_MAX    128
+
+char uartCmd[UART_RX_MAX];
+volatile uint16_t uartIndex = 0;
+volatile uint8_t uartReady = 0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -137,7 +146,7 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 	// Giao tiep UART
-	HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
+	/* HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);*/
 	HAL_UART_Receive_IT(&huart1, &RxChar, 1);
 	
 	//Read ID IC RC95HF
@@ -151,7 +160,47 @@ int main(void)
 	HAL_Delay(100);
 
 	HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port,	SPI1_NSS_Pin,GPIO_PIN_SET);
+	
+	
+	//Led On
+		GPIO_TypeDef* Led_Port[] = {Led0_GPIO_Port, Led1_GPIO_Port, Led2_GPIO_Port, Led3_GPIO_Port, Led4_GPIO_Port};
+		uint16_t Led_Pin[] = {Led0_Pin, Led1_Pin, Led2_Pin, Led3_Pin, Led4_Pin};
 
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
+		}
+		HAL_Delay(500);
+
+		// Led off
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
+		}
+		HAL_Delay(500);
+
+		// Nhay led
+		for(int i = 0; i < 5; i++)
+		{
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
+				HAL_Delay(500);
+				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
+		}
+		
+
+		// Buzzer PWM1
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+
+    pwm_set_duty(&htim1, TIM_CHANNEL_1, 20); 
+    HAL_Delay(1000);
+
+    pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
+    HAL_Delay(1000);
+		
+		//UART
+		/*HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
+    HAL_Delay(1000);*/
+		
 	sprintf(msg,"\r\n===== CR95HF TEST =====\r\n");
 	HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	
@@ -200,7 +249,6 @@ int main(void)
 			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 	}
 	
-
 	 /* Setup all protocol */
   /* Setup all protocol */
   
@@ -209,235 +257,258 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-		//Led On
-		GPIO_TypeDef* Led_Port[] = {Led0_GPIO_Port, Led1_GPIO_Port, Led2_GPIO_Port, Led3_GPIO_Port, Led4_GPIO_Port};
-		uint16_t Led_Pin[] = {Led0_Pin, Led1_Pin, Led2_Pin, Led3_Pin, Led4_Pin};
-
-		for(int i = 0; i < 5; i++)
-		{
-				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
-		}
-		HAL_Delay(500);
-
-		// Led off
-		for(int i = 0; i < 5; i++)
-		{
-				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
-		}
-		HAL_Delay(500);
-
-		// Nhay led
-		for(int i = 0; i < 5; i++)
-		{
-				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_RESET);
-				HAL_Delay(500);
-				HAL_GPIO_WritePin(Led_Port[i], Led_Pin[i], GPIO_PIN_SET);
-		}
+  while(1)
+	{
 		
-
-		// Buzzer PWM1
-		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-    pwm_set_duty(&htim1, TIM_CHANNEL_1, 20); 
-    HAL_Delay(1000);
-
-    pwm_set_duty(&htim1, TIM_CHANNEL_1, 0); 
-    HAL_Delay(1000);
+			//Chờ thẻ
 		
-		//UART
-		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff)-1, 100);
-    HAL_Delay(1000);
+			do
+			{
+					ret = CR95HF_GetUID(uid);
+					HAL_Delay(100);
+
+			} while(ret != 0);
+
+			
+			//Có thẻ -> đọc UID + dữ liệu
+			sprintf(msg,
+							"\r\nUID: %02X%02X%02X%02X%02X%02X%02X%02X\r\n",
+							uid[7],uid[6],uid[5],uid[4],
+							uid[3],uid[2],uid[1],uid[0]);
+
+			HAL_UART_Transmit(&huart1,
+												(uint8_t*)msg,
+												strlen(msg),
+												1000);
+
+			//Get Info Card
+			ret = CR95HF_GetCardSystemInfo(&sysInfo,&sysLen);
+
+			if(ret == 0)
+			{
+					sprintf(msg,"\r\nSystemInfo: ");
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+					for(uint16_t i=0;i<(sysLen+2);i++)
+					{
+							sprintf(msg,"%02X ",sysInfo[i]);
+							HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+					}
+					
+					sprintf(msg,"\r\n");
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,	strlen(msg),1000);
+			}
+			else
+			{
+					sprintf(msg,"GetSystemInfo Error=%lu\r\n",ret);
+
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg), 1000);
+			}
+
+			
+			//READ ALL BLOCKS 
+			
+			memset(allData,0,sizeof(allData));
+
+			for(uint8_t block=0; block<28; block++)
+			{
+					ret = CR95HF_ReadSingleBlock(block, blockData);
+
+					if(ret == 0)
+					{
+							memcpy(&allData[block*4],blockData, 4);
+					}
+					else
+					{
+							memset(&allData[block*4], 0xFF, 4);
+					}
+			}
+
+			//HEX DUMP
+			sprintf(msg,"\r\n== HEX DUMP ==\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+			for(uint16_t i=0;i<112;i++)
+			{
+					sprintf(msg,"%02X ",allData[i]);
+
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+					if(((i+1)%16)==0)
+					{
+							sprintf(msg,"\r\n");
+							HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+					}
+			}
+
+			//ASCII 
+			sprintf(msg,"\r\n== ASCII ==\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+			for(uint16_t i=0;i<112;i++)
+			{
+					char c = allData[i];
+
+					if(c >= 32 && c <= 126)
+					{
+							HAL_UART_Transmit(&huart1,(uint8_t*)&c,1,	1000);
+					}
+					else
+					{
+							c='.';
+							HAL_UART_Transmit(&huart1,(uint8_t*)&c,1,1000);
+					}
+			}
+
+			sprintf(msg,"\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
 		
-		// Get ID Tag
-		ret = CR95HF_GetUID(uid);
-    if(ret == 0)
-    {
-        sprintf(msg,
-                "UID: %02X%02X%02X%02X%02X%02X%02X%02X\r\n",
-                uid[7],uid[6],uid[5],uid[4],
-                uid[3],uid[2],uid[1],uid[0]);
+			//BLOCK DUMP
+			
+			sprintf(msg,"\r\n== BLOCK DUMP ==\r\n");
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg, strlen(msg), 1000);
 
-        HAL_UART_Transmit(&huart1,
-                          (uint8_t*)msg,
-                          strlen(msg),
-                          1000);
-    }
-    else
-    {
-        sprintf(msg,"No Tag (%lu)\r\n",ret);
+			for(uint8_t block=0; block<28; block++)
+			{
+					sprintf(msg,
+									"Block %02d : %02X %02X %02X %02X\r\n",
+									block,
+									allData[block*4],
+									allData[block*4+1],
+									allData[block*4+2],
+									allData[block*4+3]);
 
-        HAL_UART_Transmit(&huart1,
-                          (uint8_t*)msg,
-                          strlen(msg),
-                          1000);
-    }
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			}
 
-    HAL_Delay(500);
-		
-		//Get Infor Tag
-		ret = CR95HF_GetCardSystemInfo(&sysInfo,&sysLen);
-		if(ret == 0)
-		{
-				sprintf(msg,"SystemInfo: ");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			/* Đọc 28 block */
+			for(uint8_t block = 0; block < 28; block++)
+			{
+					ret = CR95HF_ReadSingleBlock(block, blockData);
 
-				for(uint8_t i=0;i<(sysLen+2);i++)
-				{
-						sprintf(msg,"%02X ",sysInfo[i]);
-						HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-				}
+					if(ret == 0)
+					{
+							memcpy(&allData[block * 4], blockData, 4);
+					}
+					else
+					{
+							memset(&allData[block * 4], 0x00, 4);
+					}
+			}
 
-				sprintf(msg,"\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-		}
-		else
-		{
-				sprintf(msg,"GetSystemInfo Error=%lu\r\n",ret);
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-		}
+			// Write data
+			uartIndex = 0;
+			uartReady = 0;
 
-		char msg[128];
-		
-		ret = CR95HF_Read_First16Block(&data, &len);
+			sprintf(msg,
+							"\r\nNhap chuoi can ghi");
 
-		if(ret == 0)
-		{
-				/* HEX DUMP */
-				sprintf(msg,"\r\n== HEX DUMP ==\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg),1000);
 
-				for(uint16_t i = 0; i < len; i++)
-				{
-						sprintf(msg,"%02X ",data[i]);
-						HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			while(!uartReady)
+			{
+					HAL_Delay(20);
+			}
 
-						if(((i + 1) % 16) == 0)
-						{
-								sprintf(msg,"\r\n");
-								HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-						}
-				}
+			// Start Write Tag
+			sprintf(msg,"\r\nDang ghi: %s\r\n", uartCmd);
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,	strlen(msg),1000);
+			
+			ret = CR95HF_ClearBlocks(0, 15);
+			sprintf(msg,"CLEAR =%lu\r\n",ret);
 
-				/* ASCII */
-				sprintf(msg,"\r\n== ASCII ==\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg, strlen(msg), 1000);
+			HAL_Delay(50);
 
-				for(uint16_t i = 0; i < len; i++)
-				{
-						if((data[i] >= 32) && (data[i] <= 126))
-						{
-								msg[0] = data[i];
-						}
-						else
-						{
-								msg[0] = '.';
-						}
+			ret = CR95HF_WriteString(0, uartCmd);
 
-						HAL_UART_Transmit(&huart1,(uint8_t*)msg,1,1000);
-				}
+			sprintf(msg,
+							"WRITE RET=%lu\r\n",
+							ret);
 
-				sprintf(msg,"\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 
-				/* BLOCK DUMP */
-				sprintf(msg,"\r\n== BLOCK DUMP ==\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+			if(ret == 0)
+			{
+					sprintf(msg,
+									"== GHI THANH CONG ==\r\n");
 
-				for(uint8_t block = 0; block < 28; block++)
-				{
-						sprintf(msg,
-										"Block %02d : %02X %02X %02X %02X\r\n",
-										block,
-										data[block * 4 + 0],
-										data[block * 4 + 1],
-										data[block * 4 + 2],
-										data[block * 4 + 3]);
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 
-						HAL_UART_Transmit(&huart1,(uint8_t*)msg, strlen(msg),	1000);
-				}
+					HAL_Delay(100);
 
-				sprintf(msg,"\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-		}
-		else
-		{
-				sprintf(msg,"Read Error = %lu\r\n",ret);
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-		}
-		
-		// WriteTAg
-		
-		uint8_t wrData[4] =	{'T','E','S','T'};
-		ret = CR95HF_WriteSingleBlock(8, wrData);
-		if(ret == 0)
-		{
-				sprintf(msg,"Write Block 08 OK\r\n");
-		}
-		else
-		{
-				sprintf(msg,"Write Block 08 Error=%lu\r\n",ret);
-		}
+					/* Đọc lại dữ liệu */
+					memset(allData,0,sizeof(allData));
 
-		HAL_UART_Transmit(&huart1,
-											(uint8_t*)msg,
-											strlen(msg),
-											1000);
-		
-		
-		uint8_t rdData[4];
+					for(uint8_t block=0; block<28; block++)
+					{
+							ret = CR95HF_ReadSingleBlock(block, blockData);
 
-		ret = CR95HF_ReadSingleBlock(8, rdData);
+							if(ret != 0)
+							{
+									break;
+							}
 
-		sprintf(msg,
-						"Block08 : %02X %02X %02X %02X\r\n",
-						rdData[0],
-						rdData[1],
-						rdData[2],
-						rdData[3]);
+							memcpy(&allData[block*4],blockData, 4);
+					}
 
-		HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
-		
-		// Update read tag 
-		/* ASCII */
-				sprintf(msg,"\r\n== ASCII ==\r\n");
-				HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+					/* HEX DUMP */
+					sprintf(msg,"\r\n== VERIFY HEX ==\r\n");
+					HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
 
-				for(uint16_t i = 0; i < len; i++)
-				{
-						if((data[i] >= 32) && (data[i] <= 126))
-						{
-								msg[0] = data[i];
-						}
-						else
-						{
-								msg[0] = '.';
-						}
+					for(uint16_t i=0;i<112;i++)
+					{
+							sprintf(msg,"%02X ",allData[i]);
 
-						HAL_UART_Transmit(&huart1,(uint8_t*)msg,1,1000);
-				}
+							HAL_UART_Transmit(&huart1,(uint8_t*)msg,strlen(msg),1000);
+
+							if((i+1)%16==0)
+							{
+									sprintf(msg,"\r\n");
+
+									HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg),1000);
+							}
+					}
+
+					/* ASCII */
+					sprintf(msg,"\r\n== VERIFY ASCII ==\r\n");
+					HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 1000);
+
+					for(uint16_t i=0;i<112;i++)
+					{
+							if(allData[i] == 0x00)
+									break;
+
+							HAL_UART_Transmit(&huart1, &allData[i], 1, 1000);
+					}
+
+					sprintf(msg,"\r\n");
+					HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 1000);
+			}
+			else
+			{
+					sprintf(msg,
+									"===== GHI THAT BAI =====\r\n");
+
+					HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 1000);
+			}
+
+			// Done
+			sprintf(msg,
+							"Hay nhac the ra...\r\n");
+
+			HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg),1000);
+
+			while(CR95HF_GetUID(uid) == 0)
+			{
+					HAL_Delay(100);
+			}
 	}
 		
   /* USER CODE END 3 */
 }
 
  /* USER CODE BEGIN 4 */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(huart);
-	if(huart->Instance == USART1)
-	{
-		HAL_UART_Transmit(&huart1, u8_TxBuff, sizeof(u8_TxBuff), 100);
-	}
-  /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_UART_TxCpltCallback can be implemented in the user file.
-   */
-}
+
 
 /**
   * @brief TIM1 Initialization Function
@@ -449,11 +520,22 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if(huart->Instance == USART1)
     {
-			HAL_UART_Receive_IT(&huart1, &RxChar, 1);
-      HAL_UART_Transmit(&huart1, &RxChar, 1, 100);
+        if((RxChar == '\r') || (RxChar == '\n'))
+        {
+            uartCmd[uartIndex] = 0;
+            uartReady = 1;
+        }
+        else
+        {
+            if(uartIndex < UART_RX_MAX - 1)
+            {
+                uartCmd[uartIndex++] = RxChar;
+            }
+        }
+
+        HAL_UART_Receive_IT(&huart1, &RxChar, 1);
     }
 }
-
  /* USER CODE END 4 */
 /**
   * @brief System Clock Configuration
@@ -582,7 +664,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
